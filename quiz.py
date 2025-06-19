@@ -1,14 +1,17 @@
 import streamlit as st
 import random
-from openai import OpenAI
+from dotenv import load_dotenv
+load_dotenv()
+import google.generativeai as genai
 import os
 import json
 import re
 from auth import get_user_data, update_user_data
 from scoreboard import update_user_progress
 
-# Initialize OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Initialize Gemini client
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+model = genai.GenerativeModel('gemini-pro')
 
 # List of world languages
 WORLD_LANGUAGES = [
@@ -114,44 +117,16 @@ def generate_quiz(native_language, target_language, topic, num_questions, diffic
 
     while True:
         try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": """You are a language learning quiz generator and expert language teacher. For fill-in-the-blank questions:
-                      * For Easy difficulty: Present a short sentence with one blank word to fill in
-                      * For Medium difficulty: Present a longer sentence or two short sentences with one or two blanks to fill in
-                      * For Hard difficulty: Present a longer sentences with multiple blanks to fill in 
-                      * The blank(s) should be word(s) or phrase(s) in {target_language}
-                      * Represent blanks with '___' (triple underscore)
-                      * Provide a clue for the blank(s) in {native_language}
-                      * Do not include the answer(s) anywhere in the question text.
-                      For fill-in-the-blank questions:
-                        * For Easy difficulty: Present a short sentence with one blank word to fill in
-                        * For Medium difficulty: Present a longer sentence or two short sentences with one or two blanks to fill in
-                        * For Hard difficulty: Present a longer sentences with multiple blanks to fill in 
-                        * The blank(s) should be word(s) or phrase(s) in {target_language}
-                        * Represent blanks with '___' (triple underscore)
-                        * Provide a clue for the blank(s) in {native_language}
-                        * Do not include the answer(s) anywhere in the question text
-                                    For all questions, provide question text, correct answer, and explanation.
-                                    For fill-in-the-blank questions, never include the answer in the question text.
-                                     For the easy difficulty level, you will only ask questions that are short, and easy to understand and answer and have only one blank  in  the sentences and one answer space 
-                            For the medium difficulty level, you will ask slightly more challenging questions and have only two blank  in  the sentences and two answer space 
-                            For the hard difficulty level, you will ask complex questions that require a deeper understanding of the language and have two or three  blank  in  the sentences and two or three answer space depends on the number of blanks.
-                            Format  Multiple choice question each question as follows:
-                    Question: [question text]
-                    For Easy difficulty: ask the question for the word in {target_language}
-                    * For Medium difficulty: ask the question for the meaning of the word in {target_language}
-                    * For Hard difficulty: give a word in {native_language} and ask the question which sentences is correct in {target_language}
-                    : A) [choice A], B) [choice B], C) [choice C], D) [choice D] (for multiple choice only)"""},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=1.3
+            response = model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=1.3,
+                    max_output_tokens=4000,
+                )
             )
 
-            quiz_data = parse_quiz_data(response.choices[0].message.content)
+            quiz_data = parse_quiz_data(response.text)
 
-        
             # Validate each question
             valid_questions = [q for q in quiz_data if validate_question(q)]
 
@@ -172,20 +147,12 @@ def generate_hint(question, target_language):
     "{question}"
     The hint should guide the learner towards the answer without giving it away completely."""
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content":"""You are a language learning quiz generator and expert language teacher.
-            """},
-            {"role": "user", "content": prompt}
-            ]
-    )
-    return response.choices[0].message.content.strip()
+    response = model.generate_content(prompt)
+    return response.text.strip()
 
 def load_css():
     with open("styles.css") as f:
         st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-
 
 def adjust_difficulty(current_difficulty, accuracy):
     if accuracy > 0.8:
@@ -248,8 +215,8 @@ def main():
             st.write(question['question'])
 
             if "choices" in question:
-                user_answer = st.radio(f"Choose the correct answer for Question {i + 1}:", 
-                                       question['choices'], 
+                user_answer = st.radio(f"Choose the correct answer for Question {i + 1}:",
+                                       question['choices'],
                                        key=f"q{i}")
             elif "clue" in question:  # This is a fill-in-the-blank question
                 st.write(f"Clue: {question['clue']}")
@@ -272,7 +239,7 @@ def main():
         st.markdown('<div class="chat-box">', unsafe_allow_html=True)
         st.subheader("Hint Assistant")
         if st.session_state.quiz is not None:
-            hint_question = st.selectbox("Select a question for a hint:", 
+            hint_question = st.selectbox("Select a question for a hint:",
                                          [f"Question {i+1}" for i in range(len(st.session_state.quiz))])
             if st.button("Get Hint"):
                 question_index = int(hint_question.split()[-1]) - 1
@@ -312,7 +279,6 @@ def main():
         update_user_progress(st.session_state.user, correct_answers, len(st.session_state.quiz))
 
         new_difficulty = adjust_difficulty(difficulty, score)
- 
 
         if st.button("Return"):
             st.session_state.quiz = None
