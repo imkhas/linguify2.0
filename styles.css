@@ -1,0 +1,46 @@
+.stApp {
+  background-color: #11558c;
+  color: white;
+}
+.main-card {
+  background-color: #f5f5f5;
+  color: #333;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+.stButton>button {
+  background-color: #1e3d59;
+  color: white;
+}
+.stSelectbox>div>div {
+  background-color: #f5f5f5;
+  color: #333;
+}
+.stTextInput>div>div>input {
+  background-color: #f5f5f5;
+  color: #333;
+}
+h1, h2, h3 {
+  color: white;
+}
+.main-card h1, .main-card h2, .main-card h3 {
+  color: #333;
+}
+.chat-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 300px;
+  z-index: 1000;
+}
+.chat-box {
+  background-color: #f5f5f5;
+  border: 1px solid #f5f5f5;
+  border-radius: 10px;#1e3d59
+  color: #333;
+  padding: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+}
